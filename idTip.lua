@@ -30,7 +30,7 @@ local function addLine(tooltip, id, type)
     end
 end
 
--- All types, primarily for linked tooltips
+-- All types, primarily for detached tooltips
 local function onSetHyperlink(self, link)
     local type, id = string.match(link,"^(%a+):(%d+)")
     if not type or not id then return end
@@ -86,18 +86,32 @@ GameTooltip:HookScript("OnTooltipSetUnit", function(self)
     local unit = select(2, self:GetUnit())
     if unit then
         local guid = UnitGUID(unit) or ""
-        local id   = tonumber(guid:match("-(%d+)-%x+$"), 10)
+        local id = tonumber(guid:match("-(%d+)-%x+$"), 10)
         if id and guid:match("%a+") ~= "Player" then addLine(GameTooltip, id, types.unit) end
     end
 end)
 
 -- Items
 local function attachItemTooltip(self)
-    local link = select(2, self:GetItem())
-    if link then
-        local id = select(3, strfind(link, "^|%x+|Hitem:(%-?%d+):(%d+):(%d+).*"))
-        if id then addLine(self, id, types.item) end
+  local link = select(2, self:GetItem())
+  if link then
+    local id = select(3, strfind(link, "^|%x+|Hitem:(%-?%d+):(%d+):(%d+):(%d+):(%d+):(%d+):(%-?%d+):(%-?%d+)"))
+    if id == "0" and TradeSkillFrame ~= nil and TradeSkillFrame:IsVisible() then
+      if (GetMouseFocus():GetName()) == "TradeSkillSkillIcon" then
+        id = GetTradeSkillItemLink(TradeSkillFrame.selectedSkill):match("item:(%d+):") or nil
+      else
+        for i = 1, 8 do
+          if (GetMouseFocus():GetName()) == "TradeSkillReagent"..i then
+            id = GetTradeSkillReagentItemLink(TradeSkillFrame.selectedSkill, i):match("item:(%d+):") or nil
+            break
+          end
+        end
+      end
     end
+    if id then
+      addLine(self, id, types.item)
+    end
+  end
 end
 
 GameTooltip:HookScript("OnTooltipSetItem", attachItemTooltip)
@@ -156,4 +170,18 @@ hooksecurefunc("PetBattleAura_OnEnter", function(self)
         local oldText = PetBattlePrimaryAbilityTooltip.Description:GetText(id)
         PetBattlePrimaryAbilityTooltip.Description:SetText(oldText .. "\r\r" .. types.ability .. "|cffffffff " .. id .. "|r")
     end
+end)
+
+-- Currencies
+hooksecurefunc(GameTooltip, "SetCurrencyToken", function(self, index)
+	local id = tonumber(string.match(GetCurrencyListLink(index),"currency:(%d+)"))
+	if id then addLine(self, id, types.currency) end
+end)
+
+hooksecurefunc(GameTooltip, "SetCurrencyByID", function(self, id)
+   if id then addLine(self, id, types.currency) end
+end)
+
+hooksecurefunc(GameTooltip, "SetCurrencyTokenByID", function(self, id)
+   if id then addLine(self, id, types.currency) end
 end)
